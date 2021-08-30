@@ -18,7 +18,6 @@ cimport numpy as np
 from ..utils cimport common
 from ..utils cimport outliers
 from ..utils cimport percentiles
-#from ..anc cimport bspline
 
 from libcpp.vector cimport vector
 
@@ -356,46 +355,6 @@ cdef inline void _fill_no_data(double[:, ::1] in_data_,
         _fill_no_data_ends(in_data_, ii, dims, no_data)
 
 
-# cdef double _get_array_mean(double[:, ::1] y_array_slice,
-#                             Py_ssize_t iii,
-#                             Py_ssize_t jjj,
-#                             Py_ssize_t t,
-#                             int ignore_j=-999) nogil:
-#
-#     """
-#     Calculates the gaussian-weighted mean of a 1-d array
-#
-#     Args:
-#         y_array_slice (2d array): The array.
-#         iii (int): The row index position.
-#         jjj (int): The starting column index position.
-#         t (int): The ending column index position.
-#
-#     Returns:
-#         Mean (double)
-#     """
-#
-#     cdef:
-#         Py_ssize_t jc
-#         double w
-#         double array_sum = 0.0
-#         double weights_sum = 0.0
-#
-#     for jc in range(jjj, t):
-#
-#         if ignore_j != -999:
-#             if jc == ignore_j:
-#                 continue
-#
-#         if y_array_slice[iii, jc] > 0:
-#
-#             w = common.gaussian_func(common.scale_min_max(float(jc), -1.0, 1.0, 0.0, float(t)), 0.5)
-#             array_sum += y_array_slice[iii, jc] * w
-#             weights_sum += w
-#
-#     return array_sum / weights_sum
-
-
 cdef double _get_array_std(double[:, ::1] y_array_slice,
                            Py_ssize_t iii,
                            Py_ssize_t jjj,
@@ -445,66 +404,6 @@ cdef double _get_array_std(double[:, ::1] y_array_slice,
     # sqn = <double>array_count - 1.0
 
     return common.sqrt(sum_sq / <double>array_count)
-
-
-# cdef double _get_array_cv(double[:, ::1] y_array_slice,
-#                          Py_ssize_t iii,
-#                          Py_ssize_t jjj,
-#                          Py_ssize_t t) nogil:
-#
-#     """
-#     Calculates the gaussian-weighted CV of a 1-d array
-#
-#     Args:
-#         y_array_slice (2d array): The array.
-#         iii (int): The row index position.
-#         jjj (int): The starting column index position.
-#         t (int): The ending column index position.
-#
-#     Returns:
-#         Coefficient of variation (double)
-#     """
-#
-#     cdef:
-#         Py_ssize_t jc
-#         double array_sum = 0.0
-#         Py_ssize_t array_count = 0
-#         double sq_dev, sqn, array_std_dev, cv
-#         double sum_sq = 0.0
-#
-#     for jc in range(jjj, t):
-#
-#         if y_array_slice[iii, jc] > 0:
-#
-#             array_sum += y_array_slice[iii, jc]
-#             array_count += 1
-#
-#     array_mean = array_sum / float(array_count)
-#
-#     if array_mean < 0.3:
-#         return array_mean
-#
-#     for jc in range(jjj, t):
-#
-#         if y_array_slice[iii, jc] > 0:
-#
-#             sq_dev = common.squared_diff(y_array_slice[iii, jc], array_mean)
-#             sum_sq += sq_dev
-#
-#     sqn = float(array_count) - 1.0
-#
-#     # Standard deviation
-#     array_std_dev = common.sqrt(sum_sq / sqn)
-#
-#     # Coefficient of variation
-#     cv = array_std_dev / array_mean
-#
-#     # Cap the CV
-#     if cv > 0.3:
-#         cv = 0.3
-#
-#     # Return the CV, scaled to 0-1
-#     return common.scale_min_max(cv, 0.0, 1.0, 0.0, 0.3)
 
 
 cdef inline int _check_data(double[:, ::1] array,
@@ -632,85 +531,6 @@ cdef inline void _replace_upper_envelope(double[:, ::1] y_array_sm,
     w = w1 + w2
 
     y_array_sm[ii, smj_half_idx] = (smval*w1 + yval*w2) / w
-
-
-cdef void _kernel_regression(double[:, ::1] array_,
-                             double[:, ::1] out_array_,
-                             Py_ssize_t ii,
-                             unsigned int n_cols,
-                             double h) nogil:
-
-    cdef:
-        Py_ssize_t j, m, jm
-        double kernel_a, kernel_b, kernel_k, kernel_sum
-        double j_sum
-
-    kernel_a = 1.0 / (h * common.sqrt(2.0 * 3.14159265359))
-
-    for j in range(0, n_cols):
-
-        kernel_sum = 0.0
-
-        # Get the kernel weight totals
-        for m in range(0, n_cols):
-
-            kernel_b = -0.5 * common.pow2((<double>m - <double>j) / h)
-            kernel_k = kernel_a * common.exp(kernel_b)
-            kernel_sum += kernel_k
-
-        j_sum = 0.0
-
-        for jm in range(0, n_cols):
-
-            kernel_b = -0.5 * common.pow2((<double>jm - <double>j) / h)
-            kernel_k = kernel_a * common.exp(kernel_b)
-            kernel_k /= kernel_sum
-
-            j_sum += (array_[ii, jm] * kernel_k)
-
-        out_array_[ii, j] = j_sum
-
-
-cdef struct Gaussian:
-
-    double mean
-    double var
-
-
-cdef Gaussian _set_gaussian(double mean, double var) nogil:
-
-    cdef:
-        Gaussian g
-
-    g.mean = mean
-    g.var = var
-
-    return g
-
-
-cdef Gaussian _gaussian_multiply(Gaussian g1, Gaussian g2) nogil:
-
-    cdef:
-        double mean, var
-
-    mean = (g2.var * g1.mean + g1.var * g2.mean) / (g1.var + g2.var)
-    var = (g1.var * g2.var) / (g1.var + g2.var)
-
-    return _set_gaussian(mean, var)
-
-
-cdef Gaussian _gaussian_predict(Gaussian g1, Gaussian g2) nogil:
-    return _set_gaussian(g1.mean + g2.mean, g1.var + g2.var)
-
-
-cdef Gaussian _gaussian_update(Gaussian prior, Gaussian likelihood) nogil:
-
-    cdef:
-        Gaussian posterior
-
-    posterior = _gaussian_multiply(likelihood, prior)
-
-    return posterior
 
 
 cdef inline void _dts(double[:, ::1] y_array,
