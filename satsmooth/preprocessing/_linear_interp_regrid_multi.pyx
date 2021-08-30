@@ -588,10 +588,6 @@ cdef inline void _dts(double[:, ::1] y_array,
         double max_win_diff
         double p_ab
 
-        double gpred
-        Gaussian gx, gprior, glikelihood
-        Gaussian gprocess = _set_gaussian(0.01, 0.05)
-
     ptr_func = &_get_array_std
 
     sample_min = 0.1
