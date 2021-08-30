@@ -7,7 +7,7 @@
 Satellite signal interpolation and smoothing
 ---
 
-## Dynamic temporal smoothing (DTS)
+### Dynamic temporal smoothing (DTS)
 
 > Graesser, Jordan and Stanimirova, Radost, and Friedl, Mark. (2021) Reconstruction of satellite time series with a dynamic smoother. _EarthArXiv_.
 
@@ -21,6 +21,21 @@ Satellite signal interpolation and smoothing
 ```
 
 ![](data/param_diagram.png)
+
+### Installation
+
+```commandline
+# Clone the repo
+git clone https://github.com/jgrss/satsmooth.git
+cd satsmooth/
+
+# Activate a virtual environment
+source venv/bin/activate
+
+# Compile and install SatSmooth
+(venv) python setup.py build && python setup.py install
+```
+
 
 ### Imports
 
