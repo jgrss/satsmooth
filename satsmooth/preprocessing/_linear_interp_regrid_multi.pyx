@@ -799,11 +799,7 @@ cdef inline void _dts(double[:, ::1] y_array,
 
             # Weight the standard deviation higher
             #   than the signal value.
-            # bcw_mu = (sample_std + bcw) * 0.5
             bcw_mu = (sample_std + bcw) * 0.5
-
-            # Get the std of the current time slice.
-            # slice_std = _func(y_array, ii, j, j+t)
 
             # Adjust the window size
             t_adjust = <int>(common.scale_min_max(common.logistic_func(bcw_mu, mid_k, r_k),
@@ -902,114 +898,10 @@ cdef inline void _dts(double[:, ::1] y_array,
                 adjusted_value = weighted_sum / weights_sum
                 out_array_[ii, jt_half_idx] = adjusted_value
 
-#                # t1 + mean((t3 - t4) + (t2 - t3) + (t1 - t2))
-#                gpred = y_array[ii, jt_half_idx-1] + ((y_array[ii, jt_half_idx-3] - y_array[ii, jt_half_idx-4]) +
-#                                                      (y_array[ii, jt_half_idx-2] - y_array[ii, jt_half_idx-3]) +
-#                                                      (y_array[ii, jt_half_idx-1] - y_array[ii, jt_half_idx-2])) / 3.0
-#
-#                # Prediction with variance=0.1
-#                gx = _set_gaussian(gpred, 0.2)
-#
-#                # Prior based on previous 2 predictions
-#                gprior = _gaussian_predict(gx, gprocess)
-#
-#                # Likelihood based on DTS smoothed value
-#                glikelihood = _set_gaussian(adjusted_value, 0.1)
-#
-#                # Update the estimates
-#                gx = _gaussian_update(gprior, glikelihood)
-#
-#                out_array_[ii, jt_half_idx] = gx.mean
-
             # Replace ``y_array`` with the upper envelope of ``out_array_``
             _replace_upper_envelope(y_array, out_array_, ii, n_cols, j, max_window, t_half, t_diff, t_adjust)
 
         _fill_ends(out_array_, ii, n_cols, t_half)
-
-#    if apply_bspline:
-#
-#        # Smooth the curve with a moving b-spline
-#        bspline.bcurve(bspline_t_values,
-#                       out_array_,
-#                       gap_length_array_dense_,
-#                       ii,
-#                       0,
-#                       n_cols,
-#                       k=bspline_k,
-#                       s=bspline_s)
-
-
-cdef inline double _update_posterior(unsigned long[:, ::1] freq, Py_ssize_t ridx) nogil:
-
-    """
-    Args:
-        freq (2d array): The prior and likelihood frequencies.
-        ridx (int): The row index.
-
-    P(A|B) = [P(A) x P(B|A)] / P(B)
-           = P(A) x P(B|A) -> prior x likelihood (evidence)
-    """
-
-    cdef:
-        double prior, liklihood, posterior
-
-    prior = <double>freq[ridx, 0] / <double>freq[ridx, 1]
-    likelihood = <double>freq[ridx, 2] / <double>freq[ridx, 3]
-
-    posterior = (prior * likelihood) / ((prior * likelihood) + ((1.0 - prior) * (1.0 - likelihood)))
-
-    return posterior
-
-
-cdef inline void _get_freq(double[:, ::1] signal,
-                           unsigned long[:, ::1] freq_,
-                           Py_ssize_t ridx,
-                           Py_ssize_t cola,
-                           Py_ssize_t colb) nogil:
-
-    """
-    Gets frequencies for prior and likelihood
-
-    Args:
-        signal (2d array): The time series, shaped [samples x time].
-        freq (2d array): The prior and likelihood frequencies.
-
-            ---------------------------------
-            |     priors    |   likelihood  |
-            ---------------------------------
-            | count : total | count : total |
-            ---------------------------------
-
-        ridx (int): The row index.
-        cola (int): The column start position.
-        colb (int): The column end position.
-    """
-
-    cdef:
-        Py_ssize_t ab
-        double period = 365.25
-        double p_change, l_change
-
-    if cola - period > 0:
-
-        # Get the frequencies
-        for ab in range(cola, colb-1):
-
-            # Prior
-            p_change = signal[ridx, <int>(ab-period)+1] - signal[ridx, <int>(ab-period)]
-
-            # Likelihood
-            l_change = signal[ridx, ab+1] - signal[ridx, ab]
-
-            if p_change > 0:
-                freq_[ridx, 0] += 1
-
-            if l_change > 0:
-                freq_[ridx, 2] += 1
-
-            # Totals
-            freq_[ridx, 1] += 1
-            freq_[ridx, 3] += 1
 
 
 cdef inline void _set_indexed_output(double[:, ::1] out_array_dense_view_,
@@ -1555,17 +1447,6 @@ cdef class LinterpMulti(object):
             unsigned long[:, ::1] gap_length_array_dense = np.zeros((rows, self.n), dtype='uint64')
 
             unsigned long[:, ::1] change_freq = np.zeros((rows, 4), dtype='uint64')
-
-            ##################
-            # B-spline objects
-            ##################
-
-            #double[::1] bspline_t_values
-
-        #if apply_bspline:
-        #    bspline_t_values = np.arange(0, 1, 0.01)
-        #else:
-        #    bspline_t_values = np.array([1], dtype='float64')
 
         if max_window > cols:
             max_window = cols
