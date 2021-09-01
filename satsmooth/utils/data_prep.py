@@ -31,7 +31,7 @@ class ResampleDates(object):
 
         self.indices_raw = np.ascontiguousarray(indices, dtype='float64')
 
-        self.series_raw = pd.Series(self.indices_raw, index=pd.DatetimeIndex(datetimes))
+        self.series_raw = pd.Series(self.indices_raw, index=pd.DatetimeIndex(datetimes).round('D'))
 
         # Remove duplicate rows (these are grouped in the satellite data)
         self.series_raw = self.series_raw[~self.series_raw.index.duplicated()]
