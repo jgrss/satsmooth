@@ -9,7 +9,7 @@ Satellite signal interpolation and smoothing
 
 ### Dynamic temporal smoothing (DTS)
 
-> Graesser, Jordan and Stanimirova, Radost, and Friedl, Mark. (2021) Reconstruction of satellite time series with a dynamic smoother. _EarthArXiv_.
+> Graesser, Jordan and Stanimirova, Radost and Friedl, Mark A. (2021) Reconstruction of satellite time series with a dynamic smoother. _EarthArXiv_.
 
 ```text
 @article{graesser_stanimirova_friedl_2021,
@@ -41,19 +41,29 @@ source venv/bin/activate
 
 ```python
 import satsmooth as sm
+from satsmooth.utils import prepare_x, nd_to_columns
 import numpy as np
 ```
 
 ### Prepare the dates 
 
 ```python
-time_names = [datetime.datetime(), ..., datetime.datetime()]
+# Given an image shaped (time x rows x columns), setup the time 
+# `datetime` objects of length = time 
+# 
+# A single `datetime` object can be created by:
+# from datetime import datetime
+# dt = datetime.strptime('2010-03-01', '%Y-%m-%d')
+dates = [datetime.datetime(), ..., datetime.datetime()]
 
-# Prepare the dates
-start = '2010-3-01'
+# Set the date range
+start = '2010-03-01'
 end = '2011-11-01'
-skip = 7
-xinfo = sm.prepare_x(time_names, start, end, skip)
+
+# Create the time object (x information)
+# rule='D2' -> resample to every 2nd day before smoothing (improves performance over daily sampling)
+# write_skip=10 -> write results to ~10-day intervals, restarting the 1st of each month
+xinfo = prepare_x(dates, start, end, rule='D2', skip='N', write_skip=10)
 ```
 
 Reshape the data
@@ -63,16 +73,16 @@ Reshape the data
 dims, nrows, ncols = y.shape
 
 # Reshape from (time x rows x columns) to (samples x time)
-y = sm.utils.nd_to_columns(y, dims, nrows, ncols)
+y = nd_to_columns(y, dims, nrows, ncols)
 ```
 
 Setup the interpolater
 
 ```python
-# Initiate a linear interpolater for a sparse-->daily transform
+# Instantiate a linear interpolater module for a sparse-->daily transform
 interpolator = sm.LinterpMulti(xinfo.xd, xinfo.xd_smooth)
 
-# Setup indices to return a sparse, regularly gridded output
+# Setup indices to return a sparse, regularly gridded output every ~10 days
 indices = np.ascontiguousarray(xinfo.skip_idx + xinfo.start_idx, dtype='uint64')
 ```
 
@@ -83,7 +93,7 @@ Smooth the data
 # and smoothing in one parallel iteration
 y = interpolator.interpolate_smooth(np.ascontiguousarray(y, dtype='float64'),
                            fill_no_data=True,       # fill 'no data' by linear interpolation
-                           no_data_value=nodata,    # set as 0
+                           no_data_value=0,
                            remove_outliers=True,    # search for outliers first
                            max_outlier_days1=120,   # linear
                            max_outlier_days2=120,   # polynomial
