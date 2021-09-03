@@ -2,6 +2,7 @@ import setuptools
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
+import platform
 
 try:
     from Cython.Distutils import build_ext
@@ -37,8 +38,11 @@ with open('README.md') as f:
 with open('LICENSE.txt') as f:
     license_file = f.read()
 
-required_packages = ['cython',
-                     'numpy']
+required_packages = ['cython', 'numpy']
+compile_link_args = ['-fopenmp']
+
+if platform.system().lower() == 'darwin':
+    compile_link_args.insert(0, '-Xpreprocessor')
 
 
 def get_packages():
@@ -61,46 +65,46 @@ def get_extensions():
 
     return [Extension('*',
                       sources=['satsmooth/detect/_signal.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp_regrid.pyx']),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp_regrid_multi.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp_regrid_multi_indexing.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_fill_gaps.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_outlier_removal.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/anc/_lowess_smooth.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/smooth/_adaptive_bilateral.pyx']),
             Extension('*',
                       sources=['satsmooth/smooth/_rolling1d.pyx']),
             Extension('*',
                       sources=['satsmooth/smooth/_rolling2d.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp']),
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args),
             Extension('*',
                       sources=['satsmooth/smooth/_spatial_temporal.pyx'],
-                      extra_compile_args=['-fopenmp'],
-                      extra_link_args=['-fopenmp'])]
+                      extra_compile_args=compile_link_args,
+                      extra_link_args=compile_link_args)]
 
 
 def setup_package():
