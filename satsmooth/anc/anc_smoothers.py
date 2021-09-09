@@ -1,8 +1,8 @@
 import itertools
 import multiprocessing as multi
 
-from ._dl import gd
-from ._lowess_smooth import lowess_smooth
+# from ._dl import gd
+# from ._lowess_smooth import lowess_smooth
 from .. import remove_outliers, interp2d, LinterpMulti
 from ..utils import nd_to_columns, columns_to_nd, scale_min_max
 from .. import rolling_mean2d, peaks_valleys2d, group_peaks_valleys2d
@@ -14,8 +14,8 @@ from scipy.signal import savgol_filter
 import scipy.sparse as sparse
 from scipy.sparse.linalg import splu
 from skimage.segmentation import active_contour
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import WhiteKernel, ExpSineSquared
+#from sklearn.gaussian_process import GaussianProcessRegressor
+#from sklearn.gaussian_process.kernels import WhiteKernel, ExpSineSquared
 # from numba import jit, prange, set_num_threads
 
 
@@ -284,7 +284,14 @@ class SmoothersMixin(object):
 
     @property
     def shape_out(self):
-        return self.ndims_out, self.nrows, self.ncols
+        if self.shape_is_3d:
+            return self.ndims_out, self.nrows, self.ncols
+        else:
+            return self.nsamples, self.ndims_out
+
+    @property
+    def shape_is_3d(self):
+        return True if len(self.shape_in) == 3 else False
 
     @property
     def ndims_in(self):
@@ -314,8 +321,21 @@ class SmoothersMixin(object):
     def ncols(self, ncols):
         self._ncols = ncols
 
-    def _nd_to_columns(self):
-        return nd_to_columns(self.data, *self.shape_in)
+    @property
+    def nsamples(self):
+        return self.nrows * self.ncols
+
+    def _reshape_inputs(self):
+        if self.shape_is_3d:
+            return nd_to_columns(self.data, *self.shape_in)
+        else:
+            return self.data
+
+    def _reshape_outputs(self, outputs):
+        if self.shape_is_3d:
+            return columns_to_nd(outputs, *self.shape_out)
+        else:
+            return outputs
 
 
 def pre_remove_outliers(xinfo, yarray, n_jobs, **kwargs):
@@ -376,7 +396,12 @@ class AncSmoothers(SmoothersMixin):
         # set_num_threads(n_jobs)
 
         self.shape_in = self.data.shape
-        self.ndims, self.nrows, self.ncols = self.shape_in
+        if self.shape_is_3d:
+            self.ndims, self.nrows, self.ncols = self.shape_in
+        else:
+            nsamples, self.ndims = self.shape_in
+            self.nrows = int(nsamples / 2)
+            self.ncols = 2
 
         if self.index_by_indices:
             self.indices = np.ascontiguousarray(xinfo.skip_idx + xinfo.start_idx, dtype='uint64')
@@ -388,11 +413,11 @@ class AncSmoothers(SmoothersMixin):
     def _preprocess(self):
 
         if not self.remove_outliers:
-            self.data = interp2d(np.float64(self._nd_to_columns()), no_data_value=0.0, n_jobs=self.n_jobs)
+            self.data = interp2d(np.float64(self._reshape_inputs()), no_data_value=0.0, n_jobs=self.n_jobs)
         else:
 
             self.data = pre_remove_outliers(self.xinfo,
-                                            self._nd_to_columns(),
+                                            self._reshape_inputs(),
                                             max_outlier_days1=self.max_outlier_days1,
                                             max_outlier_days2=self.max_outlier_days2,
                                             min_outlier_values=self.min_outlier_values,
@@ -402,13 +427,13 @@ class AncSmoothers(SmoothersMixin):
 
     def csp(self, s=0.1, optimize=False, chunksize=10):
 
-        return columns_to_nd(cspline_func(self.xinfo,
-                                          self.indices,
-                                          self.data,
-                                          s,
-                                          optimize,
-                                          self.n_jobs,
-                                          chunksize), *self.shape_out)
+        return self._reshape_outputs(cspline_func(self.xinfo,
+                                                  self.indices,
+                                                  self.data,
+                                                  s,
+                                                  optimize,
+                                                  self.n_jobs,
+                                                  chunksize))
 
     def bsp(self, window_size=50, mfactor=3, max_iter=1):
 
@@ -419,7 +444,7 @@ class AncSmoothers(SmoothersMixin):
 
         # interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
         #
-        # return columns_to_nd(interp.interpolate(bezier_curve(self.data.copy(),
+        # return self._reshape_outputs(interp.interpolate(bezier_curve(self.data.copy(),
         #                                                      window_size=window_size,
         #                                                      mfactor=mfactor,
         #                                                      max_iters=max_iter))[:, self.indices],
@@ -444,27 +469,27 @@ class AncSmoothers(SmoothersMixin):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(interp.interpolate(gd(ordinals=np.ascontiguousarray(self.xinfo.xd, dtype='int64'),
-                                                   y=self.data,
-                                                   pv_array=np.ascontiguousarray(pv_array, dtype='int64'),
-                                                   lr=lr,
-                                                   max_iters=max_iters,
-                                                   reltol=reltol,
-                                                   init_params=init_params,
-                                                   constraints=np.array([[0.0, 0.2],
-                                                                         [0.2, 2.0],
-                                                                         [0.0, 185.0],
-                                                                         [5.0, 40.0],
-                                                                         [185.0, 367.0],
-                                                                         [5.0, 40.0],
-                                                                         [1e-8, 0.01]]),
-                                                   beta1=beta1,
-                                                   beta2=beta2,
-                                                   n_jobs=self.n_jobs,
-                                                   chunksize=chunksize),
-                                                fill_no_data=True,
-                                                no_data_value=0,
-                                                n_jobs=self.n_jobs)[:, self.indices], *self.shape_out)
+        return self._reshape_outputs(interp.interpolate(gd(ordinals=np.ascontiguousarray(self.xinfo.xd, dtype='int64'),
+                                                           y=self.data,
+                                                           pv_array=np.ascontiguousarray(pv_array, dtype='int64'),
+                                                           lr=lr,
+                                                           max_iters=max_iters,
+                                                           reltol=reltol,
+                                                           init_params=init_params,
+                                                           constraints=np.array([[0.0, 0.2],
+                                                                                 [0.2, 2.0],
+                                                                                 [0.0, 185.0],
+                                                                                 [5.0, 40.0],
+                                                                                 [185.0, 367.0],
+                                                                                 [5.0, 40.0],
+                                                                                 [1e-8, 0.01]]),
+                                                           beta1=beta1,
+                                                           beta2=beta2,
+                                                           n_jobs=self.n_jobs,
+                                                           chunksize=chunksize),
+                                                        fill_no_data=True,
+                                                        no_data_value=0,
+                                                        n_jobs=self.n_jobs)[:, self.indices])
 
     def harm(self, period=365.25, poly_order=1, harmonic_order=1):
 
@@ -481,69 +506,67 @@ class AncSmoothers(SmoothersMixin):
                                                    n_jobs=self.n_jobs)[:, self.xinfo.start_idx:self.xinfo.end_idx],
                                 indices=self.xinfo.skip_idx)
 
-        return columns_to_nd(ypred, ypred.shape[1], self.nrows, self.ncols)
+        return self._reshape_outputs(ypred)
 
     def sg(self, w=7, p=3):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(interp.interpolate(savgol_filter(self.data, w, p),
-                                                fill_no_data=True,
-                                                no_data_value=0,
-                                                n_jobs=self.n_jobs)[:, self.indices],
-                             *self.shape_out)
+        return self._reshape_outputs(interp.interpolate(savgol_filter(self.data, w, p),
+                                                        fill_no_data=True,
+                                                        no_data_value=0,
+                                                        n_jobs=self.n_jobs)[:, self.indices])
 
     def wh(self, s=1.0, order=2, chunksize=10):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(interp.interpolate(whittaker_func(self.data, s, order, self.n_jobs, chunksize),
-                                                fill_no_data=True,
-                                                no_data_value=0,
-                                                n_jobs=self.n_jobs)[:, self.indices],
-                             *self.shape_out)
+        return self._reshape_outputs(interp.interpolate(whittaker_func(self.data, s, order, self.n_jobs, chunksize),
+                                                        fill_no_data=True,
+                                                        no_data_value=0,
+                                                        n_jobs=self.n_jobs)[:, self.indices])
 
     def lw(self, w=31, chunksize=10):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(interp.interpolate(lowess_smooth(ordinals=np.ascontiguousarray(self.xinfo.xd, dtype='int64'),
-                                                              y=self.data,
-                                                              w=w,
-                                                              n_jobs=self.n_jobs,
-                                                              chunksize=chunksize),
-                                                fill_no_data=True,
-                                                no_data_value=0,
-                                                n_jobs=self.n_jobs)[:, self.indices],
-                             *self.shape_out)
+        return self._reshape_outputs(
+            interp.interpolate(lowess_smooth(ordinals=np.ascontiguousarray(self.xinfo.xd, dtype='int64'),
+                                             y=self.data,
+                                             w=w,
+                                             n_jobs=self.n_jobs,
+                                             chunksize=chunksize),
+                               fill_no_data=True,
+                               no_data_value=0,
+                               n_jobs=self.n_jobs)[:, self.indices])
 
     def gpr(self, chunksize=10):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(gpr_func(self.xinfo,
-                                      self.indices,
-                                      interp.interpolate(self.data,
-                                                         fill_no_data=True,
-                                                         no_data_value=0,
-                                                         n_jobs=self.n_jobs),
-                                      self.n_jobs,
-                                      chunksize), *self.shape_out)
+        return self._reshape_outputs(gpr_func(self.xinfo,
+                                              self.indices,
+                                              interp.interpolate(self.data,
+                                                                 fill_no_data=True,
+                                                                 no_data_value=0,
+                                                                 n_jobs=self.n_jobs),
+                                              self.n_jobs,
+                                              chunksize))
 
     def ac(self, pad=10, chunksize=10):
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
-        return columns_to_nd(rolling_mean2d(np.ascontiguousarray(interp.interpolate(snake_contour(self.xinfo.xd,
-                                                                                                  self.data,
-                                                                                                  pad=pad,
-                                                                                                  n_jobs=self.n_jobs,
-                                                                                                  chunksize=chunksize),
-                                                                                    fill_no_data=True,
-                                                                                    no_data_value=0,
-                                                                                    n_jobs=self.n_jobs)[:, self.indices], dtype='float64'),
-                                            w=21,
-                                            no_data_value=0,
-                                            weights=np.ones(21, dtype='float64'),
-                                            n_jobs=self.n_jobs),
-                             *self.shape_out)
+        return self._reshape_outputs(rolling_mean2d(np.ascontiguousarray(interp.interpolate(snake_contour(self.xinfo.xd,
+                                                                                                          self.data,
+                                                                                                          pad=pad,
+                                                                                                          n_jobs=self.n_jobs,
+                                                                                                          chunksize=chunksize),
+                                                                                            fill_no_data=True,
+                                                                                            no_data_value=0,
+                                                                                            n_jobs=self.n_jobs)[:,
+                                                                         self.indices], dtype='float64'),
+                                                    w=21,
+                                                    no_data_value=0,
+                                                    weights=np.ones(21, dtype='float64'),
+                                                    n_jobs=self.n_jobs))
