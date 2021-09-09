@@ -1,5 +1,6 @@
+from dataclasses import dataclass
+
 import numpy as np
-from collections import namedtuple
 from datetime import datetime
 
 import pandas as pd
@@ -63,6 +64,27 @@ class ResampleDates(object):
         self.dates_resamp = self.series_resamp.index.to_pydatetime()
 
 
+@dataclass
+class XInfo:
+    # Raw data
+    xd: np.ndarray              # raw time series indices
+    dates: np.ndarray           # raw time series dates
+    start_orig_idx: int         # Closest start index to raw data
+    end_orig_idx: int           # Closest end index to raw data
+    skip_orig_idx: np.ndarray   # Indices to slice the original time series from start to end date
+    skip_orig_slice: np.ndarray
+
+    # Smooth data
+    xd_smooth: np.ndarray       # smooth time series indices
+    dates_smooth: np.ndarray    # smooth time series dates
+    xd_interp: np.ndarray       # Interpolated date index positions
+    start_idx: int              # Index of the smooth time series start date
+    end_idx: int                # Index of the smooth time series end date
+    skip_idx: np.ndarray
+    skip_slice: np.ndarray
+    write_skip_idx: np.ndarray
+
+
 def prepare_x(X, start, end, rule='D', skip='WMS', write_skip=10):
 
     """
@@ -81,7 +103,7 @@ def prepare_x(X, start, end, rule='D', skip='WMS', write_skip=10):
         write_skip (Optional[int]): The write skip interval.
 
     Returns:
-        X information (namedtuple)
+        X information
     """
 
     start_dt = datetime.strptime(start, '%Y-%m-%d')
@@ -116,8 +138,6 @@ def prepare_x(X, start, end, rule='D', skip='WMS', write_skip=10):
                                ((skip_slice[dtidx].timetuple().tm_mday == 1) or
                                 (skip_slice[dtidx].timetuple().tm_mday % write_skip == 0))],
                               dtype='int64')
-
-    XInfo = namedtuple('XInfo', 'xd xd_smooth xd_interp dates dates_smooth start_orig_idx end_orig_idx skip_orig_idx start_idx end_idx skip_idx skip_orig_slice skip_slice write_skip_idx')
 
     return XInfo(xd=rd.indices_raw,
                  xd_smooth=rd.indices_resamp,
