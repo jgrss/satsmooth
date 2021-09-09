@@ -39,10 +39,11 @@ with open('LICENSE.txt') as f:
     license_file = f.read()
 
 required_packages = ['cython', 'numpy']
-compile_link_args = ['-fopenmp']
+compile_args = ['-fopenmp']
+link_args = ['-lomp']
 
 if platform.system().lower() == 'darwin':
-    compile_link_args.insert(0, '-Xpreprocessor')
+    compile_args.insert(0, '-Xpreprocessor')
 
 
 def get_packages():
@@ -65,46 +66,55 @@ def get_extensions():
 
     return [Extension('*',
                       sources=['satsmooth/detect/_signal.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
-                      sources=['satsmooth/preprocessing/_linear_interp_regrid.pyx']),
+                      sources=['satsmooth/preprocessing/_linear_interp_regrid.pyx'],
+                      language='c++'),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp_regrid_multi.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args,
+                      language='c++'),
             Extension('*',
                       sources=['satsmooth/preprocessing/_linear_interp_regrid_multi_indexing.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_fill_gaps.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
                       sources=['satsmooth/preprocessing/_outlier_removal.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
+            Extension('*',
+                      sources=['satsmooth/anc/_dl.pyx'],
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
                       sources=['satsmooth/anc/_lowess_smooth.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args,
+                      language='c++'),
             Extension('*',
-                      sources=['satsmooth/smooth/_adaptive_bilateral.pyx']),
+                      sources=['satsmooth/smooth/_adaptive_bilateral.pyx'],
+                      language='c++'),
             Extension('*',
                       sources=['satsmooth/smooth/_rolling1d.pyx']),
             Extension('*',
                       sources=['satsmooth/smooth/_rolling2d.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args),
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args),
             Extension('*',
                       sources=['satsmooth/smooth/_spatial_temporal.pyx'],
-                      extra_compile_args=compile_link_args,
-                      extra_link_args=compile_link_args)]
+                      extra_compile_args=compile_args,
+                      extra_link_args=link_args,
+                      language='c++')]
 
 
 def setup_package():
