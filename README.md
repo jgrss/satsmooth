@@ -24,18 +24,44 @@ Satellite signal interpolation and smoothing
 
 ### Installation
 
+#### Installation on Linux
+
 ```commandline
 # Clone the repo
 git clone https://github.com/jgrss/satsmooth.git
 cd satsmooth/
 
 # Activate a virtual environment
-source venv/bin/activate
+source myvenv/bin/activate
 
 # Compile and install SatSmooth
-(venv) python setup.py build && python setup.py install
+(myvenv) python setup.py build && python setup.py install
 ```
 
+#### Installing on macOS
+```commandline
+# install libomp and llvm
+brew install libomp llvm
+
+# Ensure Clang is the c++ compiler
+CC=/usr/local/opt/llvm/bin/clang++
+
+# Ensure libomp is linked
+export DYLD_LIBRARY_PATH=$(brew --prefix libomp):$DYLD_LIBRARY_PATH
+
+# Clone and install satsmooth
+git clone https://github.com/jgrss/satsmooth.git
+cd satsmooth/
+# Activate a venv before installing
+source myvenv/bin/activate
+(myvenv) python setup.py build && pip install . -r requirements.txt
+```
+
+#### Test the installation
+
+```commandline
+(myvenv) python -c "import satsmooth as sm;print(sm.__version__)"
+```
 
 ### Imports
 
