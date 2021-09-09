@@ -359,7 +359,9 @@ def _dbl_pvs(y):
         weights = gaussian_func(np.linspace(-1, 1, k), 0.5)
 
         ymean = rolling_mean2d(np.pad(y, ((0, 0), (k, k)), mode='reflect'), w=k, weights=weights, n_jobs=1)[:, k:-k]
-        pvs += peaks_valleys2d(np.ascontiguousarray(ymean, dtype='float64'), min_value=0.05, min_dist=5, min_sp_dist=0.1, min_prop_sp_dist=0.2, order=k, n_jobs=1)[0]
+        pvs += peaks_valleys2d(np.ascontiguousarray(ymean, dtype='float64'),
+                               min_value=0.05, min_dist=5, min_sp_dist=0.1,
+                               min_prop_sp_dist=0.2, order=k, n_jobs=1)[0]
 
     pvs[pvs > 1] = 1
 
@@ -406,7 +408,7 @@ class AncSmoothers(SmoothersMixin):
         if self.index_by_indices:
             self.indices = np.ascontiguousarray(xinfo.skip_idx + xinfo.start_idx, dtype='uint64')
         else:
-            self.indices = np.ascontiguousarray(np.arange(0, self.ndims), dtype='uint64')
+            self.indices = np.ascontiguousarray(np.arange(0, self.xinfo.xd_smooth.shape[0]), dtype='uint64')
 
         self._preprocess()
 
@@ -426,6 +428,8 @@ class AncSmoothers(SmoothersMixin):
                                             n_jobs=self.n_jobs)
 
     def csp(self, s=0.1, optimize=False, chunksize=10):
+        """Cubic smoothing spline
+        """
 
         return self._reshape_outputs(cspline_func(self.xinfo,
                                                   self.indices,
@@ -433,22 +437,22 @@ class AncSmoothers(SmoothersMixin):
                                                   s,
                                                   optimize,
                                                   self.n_jobs,
-                                                  chunksize))
+                                                  chunksize)[:, self.indices])
 
-    def bsp(self, window_size=50, mfactor=3, max_iter=1):
-
-        return bezier_curve(self.data.copy(),
-                            window_size=window_size,
-                            mfactor=mfactor,
-                            max_iters=max_iter)
-
-        # interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
-        #
-        # return self._reshape_outputs(interp.interpolate(bezier_curve(self.data.copy(),
-        #                                                      window_size=window_size,
-        #                                                      mfactor=mfactor,
-        #                                                      max_iters=max_iter))[:, self.indices],
-        #                      *self.shape_out)
+    # def bsp(self, window_size=50, mfactor=3, max_iter=1):
+    #
+    #     return bezier_curve(self.data.copy(),
+    #                         window_size=window_size,
+    #                         mfactor=mfactor,
+    #                         max_iters=max_iter)
+    #
+    #     # interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
+    #     #
+    #     # return self._reshape_outputs(interp.interpolate(bezier_curve(self.data.copy(),
+    #     #                                                      window_size=window_size,
+    #     #                                                      mfactor=mfactor,
+    #     #                                                      max_iters=max_iter))[:, self.indices],
+    #     #                      *self.shape_out)
 
     def dbl(self, 
             lr=None, 
@@ -458,6 +462,8 @@ class AncSmoothers(SmoothersMixin):
             beta1=0.9, 
             beta2=0.99, 
             chunksize=10):
+        """Double logistic function
+        """
 
         pv_array = _dbl_pvs(self.data)
 
@@ -492,6 +498,8 @@ class AncSmoothers(SmoothersMixin):
                                                         n_jobs=self.n_jobs)[:, self.indices])
 
     def harm(self, period=365.25, poly_order=1, harmonic_order=1):
+        """Linear harmonic regression
+        """
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
@@ -509,6 +517,8 @@ class AncSmoothers(SmoothersMixin):
         return self._reshape_outputs(ypred)
 
     def sg(self, w=7, p=3):
+        """Savitsky-Golay smoothing
+        """
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
@@ -518,6 +528,8 @@ class AncSmoothers(SmoothersMixin):
                                                         n_jobs=self.n_jobs)[:, self.indices])
 
     def wh(self, s=1.0, order=2, chunksize=10):
+        """Whittaker smoothing
+        """
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
@@ -527,6 +539,8 @@ class AncSmoothers(SmoothersMixin):
                                                         n_jobs=self.n_jobs)[:, self.indices])
 
     def lw(self, w=31, chunksize=10):
+        """Lowess smoothing
+        """
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
@@ -554,6 +568,8 @@ class AncSmoothers(SmoothersMixin):
                                               chunksize))
 
     def ac(self, pad=10, chunksize=10):
+        """Active contour smoothing
+        """
 
         interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
 
