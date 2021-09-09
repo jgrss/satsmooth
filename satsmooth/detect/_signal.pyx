@@ -5,10 +5,6 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 
-"""
-@author: Jordan Graesser
-"""
-
 import cython
 cimport cython
 from cython.parallel import prange
