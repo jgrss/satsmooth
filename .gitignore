@@ -23,4 +23,3 @@ dist/
 .ipynb_checkpoints
 
 satsmooth/anc/_tvr.pyx
-satsmooth/anc/_dl.pyx
