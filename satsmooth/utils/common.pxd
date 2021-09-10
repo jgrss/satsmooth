@@ -86,11 +86,11 @@ cdef inline double gradient(double a, double b) nogil:
 
 
 cdef inline double prop_diff(double a, double b) nogil:
-    return (b - a) / a
+    return (b - a+1e-8) / (a+1e-8)
 
 
 cdef inline double perc_diff(double a, double b) nogil:
-    return ((b - a) / a) * 100.0
+    return prop_diff(a, b) * 100.0
 
 
 cdef inline double pow2(double val) nogil:
