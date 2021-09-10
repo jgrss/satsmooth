@@ -36,66 +36,6 @@ cdef inline double _round(double value, double factor) nogil:
     return ceil(value*factor) / factor
 
 
-cdef double _get_min1d(double[::1] array, Py_ssize_t start, Py_ssize_t end) nogil:
-
-    cdef:
-        Py_ssize_t m
-        double min_value = 1e9
-
-    for m in range(start, end):
-
-        if array[m] < min_value:
-            min_value = array[m]
-
-    return min_value
-
-
-cdef double _get_min2d(double[:, ::1] array, Py_ssize_t ii, Py_ssize_t start, Py_ssize_t end) nogil:
-
-    cdef:
-        Py_ssize_t m
-        double min_value = 1e9
-
-    for m in range(start, end):
-
-        if array[ii, m] < min_value:
-            min_value = array[ii, m]
-
-    return min_value
-
-
-cdef Py_ssize_t _get_max_index1d(double[::1] array, Py_ssize_t start, Py_ssize_t end) nogil:
-
-    cdef:
-        Py_ssize_t m
-        double max_value = -1e9
-        Py_ssize_t max_index = start
-
-    for m in range(start, end):
-
-        if array[m] > max_value:
-            max_value = array[m]
-            max_index = m
-
-    return max_index
-
-
-cdef Py_ssize_t _get_max_index2d(double[:, ::1] array, Py_ssize_t ii, Py_ssize_t start, Py_ssize_t end) nogil:
-
-    cdef:
-        Py_ssize_t m
-        double max_value = -1e9
-        Py_ssize_t max_index = start
-
-    for m in range(start, end):
-
-        if array[ii, m] > max_value:
-            max_value = array[ii, m]
-            max_index = m
-
-    return max_index
-
-
 cdef void _find_peaks1d(double[::1] array,
                         double[:, ::1] out_array_sub,
                         DTYPE_uint64_t[::1] out_array_npeaks_sub,
@@ -336,12 +276,14 @@ cdef void _find_peaks2d(double[:, ::1] array,
                         double min_sp_dist,
                         double min_prop_sp_dist,
                         unsigned int order) nogil:
+    """Finds peaks and valleys over a two-dimensional array
+    """
 
     cdef:
         Py_ssize_t jx, j1, j2, j3, j4, j5, j6, k, k2, l, m, jback, minp
         double signal_end, peak_value
         unsigned int total_peaks, total_valleys
-        double minv = 1e9
+        double minv
 
     # First pass
     # --Locate peaks and valleys
@@ -351,12 +293,13 @@ cdef void _find_peaks2d(double[:, ::1] array,
         if j1 >= (cols - order):
             break
 
-        # Peaks
+        # Peaks (window ends are less than window center)
         if (array[ii, j1] - array[ii, j1-order] > 0) and (array[ii, j1] - array[ii, j1+order] > 0):
 
-            # Value check
+            # Peaks cannot be < `min_value`
             if array[ii, j1] >= min_value:
 
+                # y value at position `j1`
                 peak_value = array[ii, j1]
 
                 # Check backward if a flat peak was missed
@@ -394,7 +337,7 @@ cdef void _find_peaks2d(double[:, ::1] array,
 
             j1 += order
 
-        # Valleys
+        # Valleys (window ends are greater than window center)
         elif (array[ii, j1] - array[ii, j1-order] < 0) and (array[ii, j1] - array[ii, j1+order] < 0):
 
             signal_end = float(j1 + 1 + min_dist)
@@ -446,7 +389,7 @@ cdef void _find_peaks2d(double[:, ::1] array,
             # Find the following peak
             while True:
 
-                if k + order >= cols:
+                if k2 + order >= cols:
                     break
 
                 # Peak?
@@ -481,15 +424,6 @@ cdef void _find_peaks2d(double[:, ::1] array,
                 out_array_sub[0, ii, k2] = 0
                 out_array_sub[1, ii, j2] = 0
 
-#                # Remove the following valley
-#                for l in range(j2+1, cols-order):
-#
-#                    # Valley?
-#                    if out_array_sub[1, ii, l] == 1:
-#
-#                        out_array_sub[1, ii, l] = 0
-#                        break
-
     # Third pass
     # --Check for peak proximity
     for j3 in range(order, cols-order):
@@ -497,20 +431,50 @@ cdef void _find_peaks2d(double[:, ::1] array,
         # Peak?
         if out_array_sub[0, ii, j3] == 1:
 
-            # Check the distance to the next peak
-            for k in range(j3+1, cols-order):
+            k = j3 - 1
+            k2 = j3 + 1
+
+            # Find the preceding peak
+            while True:
+
+                if k - order <= 0:
+                    break
 
                 # Peak?
                 if out_array_sub[0, ii, k] == 1:
+                    break
 
-                    # Distance < `min_dist` threshold?
-                    if <int>(k - j3) < min_dist:
+                k -= 1
 
-                        # Take the peak with the larger value
-                        if array[ii, j3] > array[ii, k]:
-                            out_array_sub[0, ii, k] = 0
-                        else:
-                            out_array_sub[0, ii, j3] = 0
+            # Find the following peak
+            while True:
+
+                if k2 + order >= cols:
+                    break
+
+                # Peak?
+                if out_array_sub[0, ii, k2] == 1:
+                    break
+
+                k2 += 1
+
+            # Distance < `min_dist` threshold?
+            if <int>(j3 - k) < min_dist:
+
+                # Take the peak with the larger value
+                if array[ii, j3] > array[ii, k]:
+                    out_array_sub[0, ii, k] = 0
+                else:
+                    out_array_sub[0, ii, j3] = 0
+
+            # Distance < `min_dist` threshold?
+            if (<int>(k2 - j3) < min_dist) and (array[ii, j3] == 1):
+
+                # Take the peak with the larger value
+                if array[ii, j3] > array[ii, k2]:
+                    out_array_sub[0, ii, k2] = 0
+                else:
+                    out_array_sub[0, ii, j3] = 0
 
     # Fourth pass
     # --Check for double valleys without a peak
@@ -563,26 +527,63 @@ cdef void _find_peaks2d(double[:, ::1] array,
                 out_array_max_peaks_sub[ii] = j5
 
     # Check if valleys should be added on the ends
+    j6 = 0
+    while True:
+        if j6 + 1 >= cols:
+            break
+
+        # Peak before a valley
+        if out_array_sub[0, ii, j6] == 1:
+            if out_array_sub[1, ii, j6] == 0:
+                out_array_sub[1, ii, 0] = 1
+                break
+
+        j6 += 1
+
+    j6 = cols - 1
+    while True:
+        if j6 <= 0:
+            break
+
+        # Peak before a valley
+        if out_array_sub[0, ii, j6] == 1:
+            if out_array_sub[1, ii, j6] == 0:
+                out_array_sub[1, ii, cols - 1] = 1
+                break
+
+        j6 -= 1
+
+    # Check for missing valleys between peaks
     for j6 in range(0, cols):
 
-        # valley
-        if out_array_sub[1, ii, j6] == 1:
-            if out_array_sub[0, ii, j6] != 1:
-                break
-
-        # track the minimum valley value
-        if out_array_sub[1, ii, j6] < minv:
-
-            minv = out_array_sub[1, ii, j6]
-            minp = j6
-
-        # peak
+        # Peak
         if out_array_sub[0, ii, j6] == 1:
 
-            if minv < out_array_sub[0, ii, j6]:
+            # Track the minimum valley y value
+            minv = 1e9
 
-                out_array_sub[1, ii, minp] = 1
-                break
+            # Search for a valley before the next peak
+            k2 = j6 + 1
+            while True:
+                if k2 + 1 >= cols:
+                    break
+
+                if out_array_sub[1, ii, k2] == 1:
+                    break
+
+                if array[ii, k2] < minv:
+                    minv = array[ii, k2]
+                    minp = k2
+
+                # 2nd peak found before the valley
+                if out_array_sub[0, ii, k2] == 1:
+                    if (common.fabs(array[ii, k2] - array[ii, minp]) > min_sp_dist) and (
+                            common.fabs(common.prop_diff(array[ii, k2], array[ii, minp])) > min_prop_sp_dist):
+                        out_array_sub[1, ii, minp] = 1
+
+                    break
+
+                k2 += 1
 
 
 cdef void _peaks_valleys2d(double[:, ::1] array,
@@ -973,16 +974,14 @@ def peaks_valleys2d(double[:, ::1] array not None,
                     double min_prop_sp_dist=1.0,
                     unsigned int order=1,
                     unsigned int n_jobs=1):
-
-    """
-    Detects peaks and valleys in a 2-dimensional series of signals
+    """Detects peaks and valleys in a 2-dimensional series of signals
 
     Args:
         array (2d array): The input signals, shaped [samples x time series].
-        min_value (Optional[float]): The minimum value allowed for a peak.
-        min_dist (Optional[float]): The minimum distance allowed between two peaks.
-        min_sp_dist (Optional[float]): The minimum spectral distance allowed between a peak and a valley.
-        min_prop_sp_dist (Optional[float]): The minimum proportional spectral distance allowed between a peak and a valley.
+        min_value (Optional[float]): The minimum y value allowed for a peak.
+        min_dist (Optional[float]): The minimum x distance allowed between two peaks.
+        min_sp_dist (Optional[float]): The minimum y distance allowed between a peak and a valley.
+        min_prop_sp_dist (Optional[float]): The minimum proportional y distance allowed between a peak and a valley.
         order (Optional[int]): The nth order difference.
         n_jobs (Optional[int]): The number of parallel processes.
 
@@ -1040,17 +1039,11 @@ cdef void _greenup_metrics1d(double[::1] array,
         double season_max, season_min
         double pv_diff
 
-    # Ensure the maximum peak is accurate
-    #piter = _get_max_index1d(array, viter, piter)
-
     # Scaled value at the valley and peak
     vvalue = array[viter]
     pvalue = array[piter]
 
     pv_diff = pvalue - vvalue
-
-    # season_max = array[piter]
-    # season_min = _get_min1d(array, viter, piter)
 
     sos_marker = _round(vvalue + pv_diff * sos_thresh, 1000.0)
     mos_marker = _round(vvalue + pv_diff * mos_thresh, 1000.0)
@@ -1100,17 +1093,11 @@ cdef void _greenup_metrics2d(double[:, ::1] array,
         bint sosf, mosf
         double pv_diff
 
-    # Ensure the maximum peak is accurate
-    #piter = _get_max_index2d(array, ii, viter, piter)
-
     # Scaled value at the valley and peak
     vvalue = array[ii, viter]
     pvalue = array[ii, piter]
 
     pv_diff = pvalue - vvalue
-
-    # season_max = array[ii, piter]
-    # season_min = _get_min2d(array, ii, viter, piter)
 
     sos_marker = _round(vvalue + pv_diff * sos_thresh, 1000.0)
     mos_marker = _round(vvalue + pv_diff * mos_thresh, 1000.0)
