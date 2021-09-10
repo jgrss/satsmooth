@@ -1,7 +1,8 @@
+import os
 import itertools
 import multiprocessing as multi
 
-# from ._dl import gd
+from ._dl import gd
 # from ._lowess_smooth import lowess_smooth
 from .. import remove_outliers, interp2d, LinterpMulti
 from ..utils import nd_to_columns, columns_to_nd, scale_min_max
@@ -60,7 +61,7 @@ def cspline_func(xinfo, indices, yarray, s, optimize, n_jobs, chunksize):
 
     data_gen = ((xinfo.xd, xinfo.xd_smooth, yarray[i], s, optimize) for i in range(0, yarray.shape[0]))
 
-    with multi.Pool(n_jobs) as executor:
+    with multi.Pool(processes=n_jobs) as executor:
         yout = [result[indices] for result in executor.imap(_cspline_func, data_gen, chunksize=chunksize)]
 
     # yout = np.empty((yarray.shape[0], indices.shape[0]), dtype='float64')
@@ -118,7 +119,7 @@ def whittaker_func(yarray, s, order, n_jobs, chunksize):
 
     data_gen = ((coefmat, yarray[i]) for i in range(0, yarray.shape[0]))
 
-    with multi.Pool(n_jobs) as executor:
+    with multi.Pool(processes=n_jobs) as executor:
         yout = [result for result in executor.imap(_whittaker_func, data_gen, chunksize=chunksize)]
 
     return np.array(yout)
@@ -144,7 +145,7 @@ def gpr_func(xinfo, indices, yarray, n_jobs, chunksize):
 
     data_gen = ((X, yarray[i]) for i in range(0, yarray.shape[0]))
 
-    with multi.Pool(n_jobs) as executor:
+    with multi.Pool(processes=n_jobs) as executor:
         yout = [result[indices] for result in executor.imap(_gpr_func, data_gen, chunksize=chunksize)]
 
     # for i in range(0, yarray.shape[0]):
@@ -210,7 +211,7 @@ def snake_contour(X, yarray, pad=10, n_jobs=1, chunksize=10):
 
     data_gen = ((X, yarray[i], pad, 0.01) for i in range(0, yarray.shape[0]))
 
-    with multi.Pool(n_jobs) as executor:
+    with multi.Pool(processes=n_jobs) as executor:
         yout = [result for result in executor.imap(_snake_contour, data_gen, chunksize=chunksize)]
 
     return np.array(yout)
@@ -347,25 +348,44 @@ def pre_remove_outliers(xinfo, yarray, n_jobs, **kwargs):
     return interp2d(ytest, no_data_value=0.0, n_jobs=n_jobs)
 
 
-def _dbl_pvs(y):
+def _dbl_pvs(y: np.ndarray) -> np.ndarray:
+    """Detects peaks and valleys for the double logistic function
 
-    pvs = np.zeros((2, *y.shape), dtype='float64')
+    Args:
+        y (2d array): (samples x time)
+    """
+    peak_valley_kwargs = dict(min_value=0.05,
+                              min_dist=5,
+                              min_sp_dist=0.1,
+                              min_prop_sp_dist=0.001,
+                              n_jobs=os.cpu_count())
 
     def gaussian_func(x, sigma):
+        """Gaussian function for window weights"""
         return np.exp(-pow(x, 2) / (2.0 * pow(sigma, 2)))
 
-    for k in [15, 21, 28]:
+    # The peaks/valleys array holder
+    pvs = np.zeros((2, *y.shape), dtype='float64')
 
+    # Iterate over multiple window sizes
+    for k in [21, 28]:
+
+        # Smooth the curve with a weighted rolling mean
         weights = gaussian_func(np.linspace(-1, 1, k), 0.5)
+        ymean = rolling_mean2d(np.pad(y.copy(), ((0, 0), (k, k)), mode='reflect'),
+                               w=k, weights=weights, n_jobs=os.cpu_count())[:, k:-k]
 
-        ymean = rolling_mean2d(np.pad(y, ((0, 0), (k, k)), mode='reflect'), w=k, weights=weights, n_jobs=1)[:, k:-k]
+        # Estimate peak/valley locations
         pvs += peaks_valleys2d(np.ascontiguousarray(ymean, dtype='float64'),
-                               min_value=0.05, min_dist=5, min_sp_dist=0.1,
-                               min_prop_sp_dist=0.2, order=k, n_jobs=1)[0]
+                               order=k,
+                               **peak_valley_kwargs)[0]
 
     pvs[pvs > 1] = 1
 
-    return group_peaks_valleys2d(np.int64(pvs), y, w=21, min_prop_sp_dist=0.001, n_jobs=1)
+    return group_peaks_valleys2d(np.int64(pvs), y.copy(),
+                                 w=21,
+                                 min_prop_sp_dist=peak_valley_kwargs['min_prop_sp_dist'],
+                                 n_jobs=os.cpu_count())
 
 
 class AncSmoothers(SmoothersMixin):
@@ -465,7 +485,15 @@ class AncSmoothers(SmoothersMixin):
         """Double logistic function
         """
 
-        pv_array = _dbl_pvs(self.data)
+        # Interpolate and regrid
+        interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
+        y = interp.interpolate(self.data,
+                               fill_no_data=True,
+                               no_data_value=0,
+                               n_jobs=self.n_jobs)
+
+        # Detect peaks/valleys
+        pv_array = _dbl_pvs(y)
 
         if lr is None:
             lr = np.array([0.01, 0.1, 1.0, 0.5, 1.0, 0.5, 0.001], dtype='float64')
@@ -473,29 +501,24 @@ class AncSmoothers(SmoothersMixin):
         if init_params is None:
             init_params = np.ascontiguousarray([0.03, 0.6, 75, 20.0, 300, 20.0, 0.0001], dtype='float64')
 
-        interp = LinterpMulti(self.xinfo.xd, self.xinfo.xd_smooth)
-
-        return self._reshape_outputs(interp.interpolate(gd(ordinals=np.ascontiguousarray(self.xinfo.xd, dtype='int64'),
-                                                           y=self.data,
-                                                           pv_array=np.ascontiguousarray(pv_array, dtype='int64'),
-                                                           lr=lr,
-                                                           max_iters=max_iters,
-                                                           reltol=reltol,
-                                                           init_params=init_params,
-                                                           constraints=np.array([[0.0, 0.2],
-                                                                                 [0.2, 2.0],
-                                                                                 [0.0, 185.0],
-                                                                                 [5.0, 40.0],
-                                                                                 [185.0, 367.0],
-                                                                                 [5.0, 40.0],
-                                                                                 [1e-8, 0.01]]),
-                                                           beta1=beta1,
-                                                           beta2=beta2,
-                                                           n_jobs=self.n_jobs,
-                                                           chunksize=chunksize),
-                                                        fill_no_data=True,
-                                                        no_data_value=0,
-                                                        n_jobs=self.n_jobs)[:, self.indices])
+        return self._reshape_outputs(gd(ordinals=np.ascontiguousarray(self.xinfo.xd_smooth, dtype='int64'),
+                                        y=y,
+                                        pv_array=np.ascontiguousarray(pv_array, dtype='int64'),
+                                        lr=lr,
+                                        max_iters=max_iters,
+                                        reltol=reltol,
+                                        init_params=init_params,
+                                        constraints=np.array([[0.0, 0.2],
+                                                              [0.2, 2.0],
+                                                              [0.0, 185.0],
+                                                              [5.0, 40.0],
+                                                              [185.0, 367.0],
+                                                              [5.0, 40.0],
+                                                              [1e-8, 0.01]]),
+                                        beta1=beta1,
+                                        beta2=beta2,
+                                        n_jobs=self.n_jobs,
+                                        chunksize=chunksize)[:, self.indices])
 
     def harm(self, period=365.25, poly_order=1, harmonic_order=1):
         """Linear harmonic regression
