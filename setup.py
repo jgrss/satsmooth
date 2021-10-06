@@ -40,7 +40,7 @@ with open('LICENSE.txt') as f:
 
 required_packages = ['cython', 'numpy']
 compile_args = ['-fopenmp']
-link_args = []
+link_args = ['-fopenmp']
 
 if platform.system().lower() == 'darwin':
     compile_args.insert(0, '-Xpreprocessor')
