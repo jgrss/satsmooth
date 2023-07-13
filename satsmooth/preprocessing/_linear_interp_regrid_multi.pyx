@@ -55,13 +55,13 @@ cdef inline double _get_max(double[:, ::1] in_row,
 
     """
     Gets the maximum value in a 1-d array
-    
+
     Args:
         in_row (2d array): The input array.
         a (int): The row position.
         start (int): The starting column position.
         end (int): The ending column position.
-        
+
     Returns:
         The array maximum value (double)
     """
@@ -181,13 +181,13 @@ cdef inline void _fill_no_data_ends(double[:, ::1] in_row_,
 
     """
     Fills 1-d array endpoints
-    
+
     Args:
         in_row_ (2d array)
         ii (int)
         dims (int)
         no_data (double)
-        
+
     Returns:
         None
     """
@@ -236,7 +236,7 @@ cdef inline void _fill_no_data(double[:, ::1] in_data_,
 
     """
     Fills 'no data' values by linear interpolation between valid data
-    
+
     Args:
         in_data_ (2d array)
         ii (int)
@@ -245,7 +245,7 @@ cdef inline void _fill_no_data(double[:, ::1] in_data_,
         no_data (double)
         check_ifdata (bool)
         interp_step (bool)
-        
+
     Returns:
         Filled array (1d array)
     """
@@ -362,13 +362,13 @@ cdef double _get_array_std(double[:, ::1] y_array_slice,
 
     """
     Calculates the standard deviation of a 1-d array
-    
+
     Args:
         y_array_slice (2d array): The array.
         iii (int): The row index position.
         jjj (int): The starting column index position.
         t (int): The ending column index position.
-        
+
     Returns:
         Standard deviation (double)
     """
@@ -415,7 +415,7 @@ cdef inline int _check_data(double[:, ::1] array,
 
     """
     Checks if there are sufficient data points in the time series
-    
+
     Args:
         array (2d array)
         i (int)
@@ -423,7 +423,7 @@ cdef inline int _check_data(double[:, ::1] array,
         end (int)
         no_data_value (double)
         min_data_required (int)
-        
+
     Returns:
         (int)
     """
@@ -554,7 +554,7 @@ cdef inline void _dts(double[:, ::1] y_array,
 
     """
     Smooths the data with a dynamic temporal smoother
-    
+
     Args:
         y_array (2d array): The input array.
         out_array_ (2d array): The output array.
@@ -737,13 +737,13 @@ cdef inline double _lower_bound(unsigned int begin, unsigned int end, double[::1
 
     """
     Finds the lower bound, equivalent to C `lower_bound`
-    
+
     Args:
         begin (int)
         end (int)
         x (1d array)
         val (double)
-        
+
     Returns:
         The lower bound (double)
     """
@@ -763,13 +763,13 @@ cdef inline double _upper_bound(unsigned int begin, unsigned int end, double[::1
 
     """
     Finds the upper bound, equivalent to C `upper_bound`
-    
+
     Args:
         begin (int)
         end (int)
         x (1d array)
         val (double)
-    
+
     Returns:
         The upper bound (double)
     """
@@ -1374,7 +1374,6 @@ cdef class LinterpMulti(object):
                                   False)
 
                 if data_count >= min_data_count:
-
                     # Smooth the dense, interpolated grid and modify it as the output
                     _dts(out_array_dense_view_temp,
                          out_array_dense_view,
