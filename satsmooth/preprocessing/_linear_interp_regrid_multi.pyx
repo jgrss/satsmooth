@@ -7,19 +7,16 @@
 # cython: nonecheck=False
 
 import cython
+
 cimport cython
 
-from cython.parallel import prange
-from cython.parallel import parallel
-
 import numpy as np
+from cython.parallel import parallel, prange
+
 cimport numpy as np
-
-from ..utils cimport common
-from ..utils cimport outliers
-from ..utils cimport percentiles
-
 from libcpp.vector cimport vector
+
+from ..utils cimport common, outliers, percentiles
 
 DTYPE_uint64 = np.uint64
 ctypedef np.uint64_t DTYPE_uint64_t
@@ -53,8 +50,7 @@ cdef inline double _get_max(double[:, ::1] in_row,
                             unsigned int start,
                             unsigned int end) nogil:
 
-    """
-    Gets the maximum value in a 1-d array
+    """Gets the maximum value in a 1-d array.
 
     Args:
         in_row (2d array): The input array.
@@ -179,8 +175,7 @@ cdef inline void _fill_no_data_ends(double[:, ::1] in_row_,
                                     unsigned int dims,
                                     double no_data) nogil:
 
-    """
-    Fills 1-d array endpoints
+    """Fills 1-d array endpoints.
 
     Args:
         in_row_ (2d array)
@@ -234,8 +229,7 @@ cdef inline void _fill_no_data(double[:, ::1] in_data_,
                                unsigned long[:, ::1] gap_length_array_,
                                bint record_gap_lengths) nogil:
 
-    """
-    Fills 'no data' values by linear interpolation between valid data
+    """Fills 'no data' values by linear interpolation between valid data.
 
     Args:
         in_data_ (2d array)
@@ -360,8 +354,7 @@ cdef double _get_array_std(double[:, ::1] y_array_slice,
                            Py_ssize_t jjj,
                            Py_ssize_t t) nogil:
 
-    """
-    Calculates the standard deviation of a 1-d array
+    """Calculates the standard deviation of a 1-d array.
 
     Args:
         y_array_slice (2d array): The array.
@@ -413,8 +406,7 @@ cdef inline int _check_data(double[:, ::1] array,
                             double no_data_value,
                             unsigned int min_data_required) nogil:
 
-    """
-    Checks if there are sufficient data points in the time series
+    """Checks if there are sufficient data points in the time series.
 
     Args:
         array (2d array)
@@ -451,9 +443,7 @@ cdef inline void _replace_lower_envelope(double[:, ::1] y_array_sm,
                                          unsigned int t,
                                          unsigned int t_half) nogil:
 
-    """
-    Replaces values with the lower envelope
-    """
+    """Replaces values with the lower envelope."""
 
     cdef:
         # Py_ssize_t smj
@@ -483,9 +473,7 @@ cdef inline void _replace_upper_envelope(double[:, ::1] y_array_sm,
                                          unsigned int t_diff,
                                          unsigned int t_adjust) nogil:
 
-    """
-    Replaces values with the upper envelope
-    """
+    """Replaces values with the upper envelope."""
 
     cdef:
         Py_ssize_t smj_half_idx, end_t_idx, end_ta_idx, end_tb_idx
@@ -552,8 +540,7 @@ cdef inline void _dts(double[:, ::1] y_array,
                       unsigned long[:, ::1] gap_length_array_dense_,
                       unsigned long[:, ::1] change_freq_) nogil:
 
-    """
-    Smooths the data with a dynamic temporal smoother
+    """Smooths the data with a dynamic temporal smoother.
 
     Args:
         y_array (2d array): The input array.
@@ -735,8 +722,7 @@ cdef inline void _set_indexed_output(double[:, ::1] out_array_dense_view_,
 
 cdef inline double _lower_bound(unsigned int begin, unsigned int end, double[::1] x, double val):
 
-    """
-    Finds the lower bound, equivalent to C `lower_bound`
+    """Finds the lower bound, equivalent to C `lower_bound`
 
     Args:
         begin (int)
@@ -761,8 +747,7 @@ cdef inline double _lower_bound(unsigned int begin, unsigned int end, double[::1
 
 cdef inline double _upper_bound(unsigned int begin, unsigned int end, double[::1] x, double val):
 
-    """
-    Finds the upper bound, equivalent to C `upper_bound`
+    """Finds the upper bound, equivalent to C `upper_bound`
 
     Args:
         begin (int)
@@ -854,9 +839,7 @@ cdef inline void _regrid(double[:, ::1] data_array,
                          unsigned long[:, ::1] gap_length_array_dense_,
                          int data_count) nogil:
 
-    """
-    Regrids data to a new, dense array
-    """
+    """Regrids data to a new, dense array."""
 
     cdef:
         Py_ssize_t k, p
@@ -967,8 +950,7 @@ cdef class LinterpMulti(object):
                     int n_jobs=1,
                     int chunksize=1):
 
-        """
-        Linearly interpolates values to a new grid
+        """Linearly interpolates values to a new grid.
 
         Args:
             array (2d array): The data to interpolate. The shape should be (M,).
@@ -1163,8 +1145,7 @@ cdef class LinterpMulti(object):
                            int n_jobs=1,
                            int chunksize=1):
 
-        """
-        Linearly interpolates values to a new grid, with optional smoothing
+        """Linearly interpolates values to a new grid, with optional smoothing.
 
         Args:
             array (2d array): The data to interpolate. The shape should be (M,).
@@ -1395,6 +1376,7 @@ cdef class LinterpMulti(object):
                          change_freq)
 
                 else:
+                
                     _replace_array(out_array_dense_view_temp,
                                    out_array_dense_view,
                                    i,
