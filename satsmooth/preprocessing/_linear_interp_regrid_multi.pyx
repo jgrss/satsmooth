@@ -1395,7 +1395,6 @@ cdef class LinterpMulti(object):
                          change_freq)
 
                 else:
-
                     _replace_array(out_array_dense_view_temp,
                                    out_array_dense_view,
                                    i,
