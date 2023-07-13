@@ -430,6 +430,11 @@ cdef inline void _fill_gap(Py_ssize_t ff,
     ii = _get_rindex(col_dims, ff)
     jj = _get_cindex(col_dims, ff, ii)
 
+    if ii+hw+1 > y.shape[1]:
+        ii -= 1
+    if jj+hw+1 > y.shape[2]:
+        jj -= 1
+
     # Center target sample
     if y[b, ii+hw, jj+hw] == nodata:
 
