@@ -3,19 +3,12 @@ repos:
     rev: 22.3.0
     hooks:
     - id: black
-      name: black (python)
       language_version: python3
       args: [--skip-string-normalization]
-    - id: black
-      name: black (cython)
-      language_version: python3
-      args: [--skip-string-normalization]
-      types: [cython]
   - repo: https://github.com/myint/docformatter
     rev: v1.4
     hooks:
     - id: docformatter
-      name: docformatter (python)
       args: [
         --in-place,
         --wrap-summaries,
@@ -23,21 +16,10 @@ repos:
         --wrap-descriptions,
         '79',
       ]
-    - id: docformatter
-      name: docformatter (cython)
-      args: [
-        --in-place,
-        --wrap-summaries,
-        '79',
-        --wrap-descriptions,
-        '79',
-      ]
-      types: [cython]
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
     - id: flake8
-      name: flake8
   - repo: https://github.com/pycqa/isort
     rev: 5.11.5
     hooks:
