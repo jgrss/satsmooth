@@ -1,4 +1,5 @@
 __path__: str = __import__('pkgutil').extend_path(__path__, __name__)
+__version__ = '1.5.15'
 
 from .detect import (
     group_peaks_valleys2d,
@@ -27,7 +28,6 @@ from .smooth import (
     rolling_std1d,
     spatial_temporal,
 )
-from .version import __version__
 
 __all__ = [
     'interp1d',

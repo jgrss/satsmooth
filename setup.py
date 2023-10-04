@@ -1,13 +1,15 @@
 import platform
-from distutils.core import setup
-from distutils.extension import Extension
-
-from Cython.Build import cythonize
 
 try:
-    from Cython.Distutils import build_ext
+    from setuptools import Extension, setup
 except ImportError:
-    from distutils.command import build_ext
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    raise ImportError('Cython must be installed.')
 
 import numpy as np
 
@@ -105,7 +107,6 @@ def get_extensions():
 def setup_package():
     metadata = dict(
         ext_modules=cythonize(get_extensions()),
-        cmdclass=dict(build_ext=build_ext),
         include_dirs=[np.get_include()],
     )
 

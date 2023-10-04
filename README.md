@@ -27,15 +27,15 @@ Satellite signal interpolation and smoothing
 #### Installation on Linux
 
 ```commandline
-# Clone the repo
+pip install git+https://github.com/jgrss/satsmooth.git
+```
+
+or
+
+```commandline
 git clone https://github.com/jgrss/satsmooth.git
 cd satsmooth/
-
-# Activate a virtual environment
-source myvenv/bin/activate
-
-# Compile and install SatSmooth
-(myvenv) python setup.py build && python setup.py install
+pip install .
 ```
 
 #### Installing on macOS
@@ -71,12 +71,12 @@ from satsmooth.utils import prepare_x, nd_to_columns
 import numpy as np
 ```
 
-### Prepare the dates 
+### Prepare the dates
 
 ```python
-# Given an image shaped (time x rows x columns), setup the time 
-# `datetime` objects of length = time 
-# 
+# Given an image shaped (time x rows x columns), setup the time
+# `datetime` objects of length = time
+#
 # A single `datetime` object can be created by:
 # from datetime import datetime
 # dt = datetime.strptime('2010-03-01', '%Y-%m-%d')
@@ -115,7 +115,7 @@ indices = np.ascontiguousarray(xinfo.skip_idx + xinfo.start_idx, dtype='uint64')
 Smooth the data
 
 ```python
-# This function applies interpolation, outlier detection, regridding, 
+# This function applies interpolation, outlier detection, regridding,
 # and smoothing in one parallel iteration
 y = interpolator.interpolate_smooth(np.ascontiguousarray(y, dtype='float64'),
                            fill_no_data=True,       # fill 'no data' by linear interpolation
@@ -131,8 +131,8 @@ y = interpolator.interpolate_smooth(np.ascontiguousarray(y, dtype='float64'),
                            indices=indices,         # the indices to return
                            max_window=61,
                            min_window=21,
-                           mid_g=0.5, 
-                           r_g=-10.0, 
+                           mid_g=0.5,
+                           r_g=-10.0,
                            mid_k=0.5,
                            r_k=-10.0,
                            mid_t=0.5,
