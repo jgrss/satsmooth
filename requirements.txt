@@ -1,4 +1,0 @@
-cython>=0.29.0,<3.0.0
-numpy
-scikit-image
-numba
