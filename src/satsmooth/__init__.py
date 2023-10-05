@@ -1,5 +1,5 @@
 __path__: str = __import__('pkgutil').extend_path(__path__, __name__)
-__version__ = '1.5.15'
+__version__ = '1.5.16'
 
 from .detect import (
     group_peaks_valleys2d,
