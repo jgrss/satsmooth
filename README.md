@@ -1,8 +1,6 @@
-[](#mit-license)[](#python-3.6)[](#package-version)
-
-[![MIT license](https://img.shields.io/badge/License-MIT-black.svg)](https://lbesson.mit-license.org/)
-[![Python 3.6](https://img.shields.io/badge/python-3.6-black.svg)](https://www.python.org/downloads/release/python-360/)
-![Package version](https://img.shields.io/badge/version-1.5.15-blue.svg?cacheSeconds=2592000)
+[![](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/jgrss/satsmooth/blob/main/LICENSE.txt)
+[![python](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+[![](https://img.shields.io/github/v/release/jgrss/satsmooth?display_name=release)](https://github.com/jgrss/satsmooth/releases)
 
 Satellite signal interpolation and smoothing
 ---
